@@ -4,32 +4,64 @@ const { Category } = require('../models');
 
 const router = express.Router();
 
-// Category routes are simple, but we still validate the input body.
-// We validate here because the POST endpoint needs a valid category name
-// before trying to create the model in the database. This validator runs
-// as middleware, so it intercepts the request, checks the body, and either
-// returns an error response or passes control to the next handler.
 const validateCategory = [
   body('name')
     .trim()
-    .notEmpty().withMessage('Name is required'),
+    .notEmpty()
+    .withMessage('Name is required'),
+
   (req, res, next) => {
     const errors = validationResult(req);
+
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({
+        errors: errors.array()
+      });
     }
+
     next();
   }
 ];
 
 router.get('/', async (req, res) => {
   const categories = await Category.findAll();
-  res.status(200).json(categories);
+  res.json(categories);
+});
+
+router.get('/:categoryId', async (req, res) => {
+  const category = await Category.findByPk(req.params.categoryId);
+
+  if (!category) {
+    return res.status(404).json({
+      message: 'Category not found'
+    });
+  }
+
+  res.json(category);
 });
 
 router.post('/', validateCategory, async (req, res) => {
-  const category = await Category.create({ name: req.body.name });
+  const category = await Category.create({
+    name: req.body.name
+  });
+
   res.status(201).json(category);
+});
+
+router.put('/:categoryId', validateCategory, async (req, res) => {
+  const category = await Category.findByPk(req.params.categoryId);
+
+  if (!category) {
+    return res.status(404).json({
+      message: 'Category not found'
+    });
+  }
+
+  await category.update({
+    name: req.body.name
+  });
+
+  res.json(category);
 });
 
 router.delete('/:categoryId', async (req, res) => {
@@ -47,4 +79,5 @@ router.delete('/:categoryId', async (req, res) => {
 
   res.status(204).send();
 });
+
 module.exports = router;

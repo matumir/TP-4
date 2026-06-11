@@ -7,14 +7,29 @@ module.exports = (sequelize) => {
       primaryKey: true,
       autoIncrement: true
     },
+
     name: {
       type: DataTypes.STRING,
       allowNull: false
     },
-    price: {
-      type: DataTypes.FLOAT,
-      allowNull: false
+
+    currentStock: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
     },
+
+    minimumStock: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
+
+    expirationDate: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+
     categoryId: {
       type: DataTypes.INTEGER,
       allowNull: true,

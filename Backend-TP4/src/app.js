@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const productsRouter = require('./routes/products');
 const categoriesRouter = require('./routes/categories');
+const movementsRouter = require('./routes/movements');
 const { sequelize } = require('./models');
 
 const app = express();
@@ -11,7 +12,7 @@ const PORT = 3000;
 app.use(express.json());
 app.use('/api/products', productsRouter);
 app.use('/api/categories', categoriesRouter);
-
+app.use('/api/movements', movementsRouter);
 // Start the HTTP server only when app.js is executed directly.
 // This allows the app to be imported by tests without opening a listener.
 const startServer = async () => {

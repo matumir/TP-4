@@ -4,28 +4,37 @@
   const { Product, Category } = require('../models');
 
   const router = express.Router();
+ const validateProductData = [
+  body('name')
+    .trim()
+    .notEmpty()
+    .withMessage('Name is required'),
 
-  // Validation chain for product creation and update requests.
-  // We validate body fields here before reaching the controller logic.
-  const validateProductData = [
-    body('name')
-      .trim()
-      .notEmpty().withMessage('Name is required'),
-    body('price')
-      .notEmpty().withMessage('Price is required')
-      .isFloat({ gt: 0 }).withMessage('Price must be a positive number'),
-    body('categoryId')
-      .optional({ nullable: true })
-      .isInt({ gt: 0 }).withMessage('Category id must be a positive integer'),
-    (req, res, next) => {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-      next();
+  body('currentStock')
+    .isInt({ min: 0 })
+    .withMessage('Current stock must be >= 0'),
+
+  body('minimumStock')
+    .isInt({ min: 0 })
+    .withMessage('Minimum stock must be >= 0'),
+
+  body('categoryId')
+    .optional({ nullable: true })
+    .isInt({ gt: 0 })
+    .withMessage('Category id must be a positive integer'),
+
+  (req, res, next) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        errors: errors.array()
+      });
     }
-  ];
 
+    next();
+  }
+];
   // Separate validation chain for route parameters.
   // This handles productId in URLs and keeps parameter validation isolated
   // from request body validation.
@@ -79,7 +88,13 @@
   };
 
   const addProduct = async (req, res) => {
-    const { name, price, categoryId } = req.body;
+    const {
+        name,
+        currentStock,
+        minimumStock,
+        expirationDate,
+        categoryId
+      } = req.body;
 
     if (categoryId) {
       const category = await Category.findByPk(categoryId);
@@ -90,7 +105,9 @@
 
     const product = await Product.create({
       name,
-      price,
+      currentStock,
+      minimumStock,
+      expirationDate,
       categoryId: categoryId || null
     });
 
@@ -107,7 +124,13 @@
 
   const updateProduct = async (req, res) => {
     const { productId } = req.params;
-    const { name, price, categoryId } = req.body;
+    const {
+      name,
+      currentStock,
+      minimumStock,
+      expirationDate,
+      categoryId
+    } = req.body;
 
     const product = await Product.findByPk(productId);
     if (!product) {
@@ -123,7 +146,9 @@
 
     await product.update({
       name,
-      price,
+      currentStock,
+      minimumStock,
+      expirationDate,
       categoryId: categoryId || null
     });
 
@@ -150,6 +175,22 @@
   };
 
   router.get('/', getAllProducts);
+  router.get('/:productId', validateProductId, async (req, res) => {
+  const product = await Product.findByPk(req.params.productId, {
+    include: {
+      model: Category,
+      as: 'category'
+    }
+  });
+
+  if (!product) {
+    return res.status(404).json({
+      message: 'Product not found'
+    });
+  }
+
+  res.json(product);
+});
   router.post('/', validateProductData, addProduct);
   router.put('/:productId', [...validateProductId, ...validateProductData], updateProduct);
   router.delete('/:productId', validateProductId, deleteProduct);

@@ -16,7 +16,13 @@ module.exports = (sequelize) => {
     quantity: {
       type: DataTypes.INTEGER,
       allowNull: false
+    },
+
+    batchId: {
+      type: DataTypes.INTEGER,
+      allowNull: false
     }
+
   }, {
     timestamps: true,
     tableName: 'movements'

@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { Movement, Product } = require('../models');
+const { Movement, Batch, Product } = require('../models');
 
 const router = express.Router();
 
@@ -16,6 +16,10 @@ const validateMovement = [
   body('productId')
     .isInt({ gt: 0 })
     .withMessage('Product id is required'),
+
+  body('expirationDate')
+    .isISO8601()
+    .withMessage('Expiration date is invalid'),
 
   (req, res, next) => {
     const errors = validationResult(req);
@@ -33,8 +37,12 @@ const validateMovement = [
 router.get('/', async (req, res) => {
   const movements = await Movement.findAll({
     include: {
-      model: Product,
-      as: 'product'
+      model: Batch,
+      as: 'batch',
+      include: {
+        model: Product,
+        as: 'product'
+      }
     }
   });
 
@@ -42,7 +50,13 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', validateMovement, async (req, res) => {
-  const { type, quantity, productId } = req.body;
+
+  const {
+    type,
+    quantity,
+    productId,
+    expirationDate
+  } = req.body;
 
   const product = await Product.findByPk(productId);
 
@@ -52,30 +66,57 @@ router.post('/', validateMovement, async (req, res) => {
     });
   }
 
+  let batch = await Batch.findOne({
+    where: {
+      productId,
+      expirationDate
+    }
+  });
+
   if (type === 'ENTRY') {
-    product.currentStock += quantity;
+
+    if (!batch) {
+      batch = await Batch.create({
+        productId,
+        expirationDate,
+        quantity: 0
+      });
+    }
+
+    batch.quantity += quantity;
+
+    await batch.save();
   }
 
   if (type === 'EXIT') {
 
-    if (product.currentStock < quantity) {
-      return res.status(400).json({
-        message: 'Not enough stock'
+    if (!batch) {
+      return res.status(404).json({
+        message: 'Batch not found for that expiration date'
       });
     }
 
-    product.currentStock -= quantity;
-  }
+    if (batch.quantity < quantity) {
+      return res.status(400).json({
+        message: 'Not enough stock in batch'
+      });
+    }
 
-  await product.save();
+    batch.quantity -= quantity;
+
+    await batch.save();
+  }
 
   const movement = await Movement.create({
     type,
     quantity,
-    productId
+    batchId: batch.id
   });
 
-  res.status(201).json(movement);
+  res.status(201).json({
+    movement,
+    batch
+  });
 });
 
 module.exports = router;

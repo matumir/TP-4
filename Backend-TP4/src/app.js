@@ -4,6 +4,7 @@ const productsRouter = require('./routes/products');
 const categoriesRouter = require('./routes/categories');
 const movementsRouter = require('./routes/movements');
 const batchesRouter = require('./routes/batches');
+const seedDatabase = require('./seed');
 const { sequelize } = require('./models');
 
 const app = express();
@@ -18,14 +19,11 @@ app.use('/api/batches', batchesRouter);
 // Start the HTTP server only when app.js is executed directly.
 // This allows the app to be imported by tests without opening a listener.
 const startServer = async () => {
-  try {
-    await sequelize.sync();
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Error starting server:', error);
-  }
+  await sequelize.sync();
+  await seedDatabase();
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
 };
 
 if (require.main === module) {

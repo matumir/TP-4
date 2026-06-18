@@ -22,6 +22,11 @@ module.exports = (sequelize) => {
     productId: {
       type: DataTypes.INTEGER,
       allowNull: false
+    },
+
+    houseId: {
+      type: DataTypes.INTEGER,
+      allowNull: false
     }
 
   }, {

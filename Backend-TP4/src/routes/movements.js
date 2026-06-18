@@ -17,6 +17,10 @@ const validateMovement = [
     .isInt({ gt: 0 })
     .withMessage('Product id is required'),
 
+  body('houseId')
+    .isInt({ gt: 0 })
+    .withMessage('House id is required'),
+
   body('expirationDate')
     .isISO8601()
     .withMessage('Expiration date is invalid'),
@@ -55,6 +59,7 @@ router.post('/', validateMovement, async (req, res) => {
     type,
     quantity,
     productId,
+    houseId,
     expirationDate
   } = req.body;
 
@@ -69,6 +74,7 @@ router.post('/', validateMovement, async (req, res) => {
   let batch = await Batch.findOne({
     where: {
       productId,
+      houseId,
       expirationDate
     }
   });
@@ -78,6 +84,7 @@ router.post('/', validateMovement, async (req, res) => {
     if (!batch) {
       batch = await Batch.create({
         productId,
+        houseId,
         expirationDate,
         quantity: 0
       });
@@ -92,7 +99,7 @@ router.post('/', validateMovement, async (req, res) => {
 
     if (!batch) {
       return res.status(404).json({
-        message: 'Batch not found for that expiration date'
+        message: 'Batch not found for that expiration date in this house'
       });
     }
 

@@ -1,210 +1,404 @@
-const express = require('express');
-const { body, param, validationResult } = require('express-validator');
-const { Op } = require('sequelize');
-const { Product, Category } = require('../models');
+const express = require("express");
+const { body, param, validationResult } = require("express-validator");
+const { Op } = require("sequelize");
+
+const {
+    Product,
+    Category,
+    Batch,
+    House
+} = require("../models");
 
 const router = express.Router();
 
-const validateProductData = [
-  body('name')
-    .trim()
-    .notEmpty()
-    .withMessage('Name is required'),
+/*
+====================================
+VALIDACIONES
+====================================
+*/
 
-  body('minimumStock')
-    .optional()
-    .isInt({ min: 0 })
-    .withMessage('Minimum stock must be >= 0'),
+const validateProduct = [
 
-  body('categoryId')
-    .optional({ nullable: true })
-    .isInt({ gt: 0 })
-    .withMessage('Category id must be a positive integer'),
+    body("name")
+        .trim()
+        .notEmpty()
+        .withMessage("El nombre es obligatorio"),
 
-  (req, res, next) => {
-    const errors = validationResult(req);
+    body("minimumStock")
+        .isInt({ min: 0 })
+        .withMessage("El stock mínimo debe ser mayor o igual a 0"),
 
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        errors: errors.array()
-      });
+    body("categoryId")
+        .isInt({ gt: 0 })
+        .withMessage("La categoría es obligatoria"),
+
+    (req, res, next) => {
+
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+
+            return res.status(400).json({
+                errors: errors.array()
+            });
+
+        }
+
+        next();
+
     }
 
-    next();
-  }
 ];
 
-const validateProductId = [
-  param('productId')
-    .isInt({ gt: 0 })
-    .withMessage('Product id must be a positive integer'),
+const validateId = [
 
-  (req, res, next) => {
-    const errors = validationResult(req);
+    param("productId")
+        .isInt({ gt: 0 }),
 
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        errors: errors.array()
-      });
+    (req, res, next) => {
+
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+
+            return res.status(400).json({
+                errors: errors.array()
+            });
+
+        }
+
+        next();
+
     }
 
-    next();
-  }
 ];
 
-const getAllProducts = async (req, res) => {
-  const { name, category } = req.query;
+/*
+====================================
+GET TODOS LOS PRODUCTOS
+====================================
+*/
 
-  const productWhere = {};
+router.get("/", async (req, res) => {
 
-  if (name) {
-    productWhere.name = {
-      [Op.like]: `%${name}%`
-    };
-  }
+    try {
 
-  const categoryInclude = {
-    model: Category,
-    as: 'category',
-    attributes: ['id', 'name'],
-    required: false
-  };
+        const where = {};
 
-  if (category) {
-    categoryInclude.where = {
-      name: {
-        [Op.like]: `%${category}%`
-      }
-    };
+        if (req.query.name) {
 
-    categoryInclude.required = true;
-  }
+            where.name = {
+                [Op.like]: `%${req.query.name}%`
+            };
 
-  const products = await Product.findAll({
-    where: productWhere,
-    include: categoryInclude
-  });
+        }
 
-  res.status(200).json(products);
-};
+        const products = await Product.findAll({
 
-const getProductById = async (req, res) => {
-  const product = await Product.findByPk(req.params.productId, {
-    include: {
-      model: Category,
-      as: 'category'
+            where,
+
+            include: [
+
+                {
+                    model: Category,
+                    as: "category"
+                },
+
+                {
+                    model: Batch,
+                    as: "batches"
+                }
+
+            ]
+
+        });
+
+        const response = products.map(product => {
+
+            const stock = product.batches.reduce(
+
+                (total, batch) => total + batch.quantity,
+
+                0
+
+            );
+
+            return {
+
+                id: product.id,
+
+                name: product.name,
+
+                minimumStock: product.minimumStock,
+
+                stock,
+
+                category: product.category,
+
+                batches: product.batches.length
+
+            };
+
+        });
+
+        res.json(response);
+
     }
-  });
 
-  if (!product) {
-    return res.status(404).json({
-      message: 'Product not found'
-    });
-  }
+    catch (error) {
 
-  res.json(product);
-};
+        res.status(500).json({
+            error: error.message
+        });
 
-const addProduct = async (req, res) => {
-  const {
-    name,
-    minimumStock,
-    categoryId
-  } = req.body;
-
-  if (categoryId) {
-    const category = await Category.findByPk(categoryId);
-
-    if (!category) {
-      return res.status(400).json({
-        message: 'Category not found'
-      });
     }
-  }
 
-  const product = await Product.create({
-    name,
-    minimumStock: minimumStock || 0,
-    categoryId: categoryId || null
-  });
+});
 
-  const productWithCategory = await Product.findByPk(product.id, {
-    include: {
-      model: Category,
-      as: 'category'
+/*
+====================================
+GET PRODUCTO
+====================================
+*/
+
+router.get("/:productId", validateId, async (req, res) => {
+
+    try {
+
+        const product = await Product.findByPk(req.params.productId, {
+
+            include: [
+
+                {
+                    model: Category,
+                    as: "category"
+                },
+
+                {
+                    model: Batch,
+                    as: "batches",
+                    include: [
+
+                        {
+                            model: House,
+                            as: "house"
+                        }
+
+                    ]
+                }
+
+            ]
+
+        });
+
+        if (!product) {
+
+            return res.status(404).json({
+
+                message: "Producto no encontrado"
+
+            });
+
+        }
+
+        const stock = product.batches.reduce(
+
+            (total, batch) => total + batch.quantity,
+
+            0
+
+        );
+
+        res.json({
+
+            id: product.id,
+
+            name: product.name,
+
+            minimumStock: product.minimumStock,
+
+            stock,
+
+            category: product.category,
+
+            batches: product.batches
+
+        });
+
     }
-  });
 
-  res.status(201).json(productWithCategory);
-};
+    catch (error) {
 
-const updateProduct = async (req, res) => {
-  const { productId } = req.params;
+        res.status(500).json({
+            error: error.message
+        });
 
-  const {
-    name,
-    minimumStock,
-    categoryId
-  } = req.body;
-
-  const product = await Product.findByPk(productId);
-
-  if (!product) {
-    return res.status(404).json({
-      message: 'Product not found'
-    });
-  }
-
-  if (categoryId) {
-    const category = await Category.findByPk(categoryId);
-
-    if (!category) {
-      return res.status(400).json({
-        message: 'Category not found'
-      });
     }
-  }
 
-  await product.update({
-    name,
-    minimumStock,
-    categoryId: categoryId || null
-  });
+});
 
-  const updatedProduct = await Product.findByPk(product.id, {
-    include: {
-      model: Category,
-      as: 'category'
+/*
+====================================
+CREAR PRODUCTO
+====================================
+*/
+
+router.post("/", validateProduct, async (req, res) => {
+
+    try {
+
+        const category = await Category.findByPk(req.body.categoryId);
+
+        if (!category) {
+
+            return res.status(404).json({
+
+                message: "Categoría inexistente"
+
+            });
+
+        }
+
+        const product = await Product.create({
+
+            name: req.body.name,
+
+            minimumStock: req.body.minimumStock,
+
+            categoryId: req.body.categoryId
+
+        });
+
+        const created = await Product.findByPk(product.id, {
+
+            include: {
+
+                model: Category,
+
+                as: "category"
+
+            }
+
+        });
+
+        res.status(201).json(created);
+
     }
-  });
 
-  res.json(updatedProduct);
-};
+    catch (error) {
 
-const deleteProduct = async (req, res) => {
-  const deletedCount = await Product.destroy({
-    where: {
-      id: req.params.productId
+        res.status(500).json({
+            error: error.message
+        });
+
     }
-  });
 
-  if (!deletedCount) {
-    return res.status(404).json({
-      message: 'Product not found'
-    });
-  }
+});
 
-  res.status(204).send();
-};
+/*
+====================================
+MODIFICAR PRODUCTO
+====================================
+*/
 
-router.get('/', getAllProducts);
-router.get('/:productId', validateProductId, getProductById);
-router.post('/', validateProductData, addProduct);
-router.put(
-  '/:productId',
-  [...validateProductId, ...validateProductData],
-  updateProduct
-);
-router.delete('/:productId', validateProductId, deleteProduct);
+router.put("/:productId", [...validateId, ...validateProduct], async (req, res) => {
+
+    try {
+
+        const product = await Product.findByPk(req.params.productId);
+
+        if (!product) {
+
+            return res.status(404).json({
+
+                message: "Producto no encontrado"
+
+            });
+
+        }
+
+        await product.update({
+
+            name: req.body.name,
+
+            minimumStock: req.body.minimumStock,
+
+            categoryId: req.body.categoryId
+
+        });
+
+        const updated = await Product.findByPk(product.id, {
+
+            include: {
+
+                model: Category,
+
+                as: "category"
+
+            }
+
+        });
+
+        res.json(updated);
+
+    }
+
+    catch (error) {
+
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+
+});
+
+/*
+====================================
+ELIMINAR PRODUCTO
+====================================
+*/
+
+router.delete("/:productId", validateId, async (req, res) => {
+
+    try {
+
+        const product = await Product.findByPk(req.params.productId);
+
+        if (!product) {
+
+            return res.status(404).json({
+
+                message: "Producto no encontrado"
+
+            });
+
+        }
+
+        await Batch.destroy({
+
+            where: {
+
+                productId: product.id
+
+            }
+
+        });
+
+        await product.destroy();
+
+        res.status(204).send();
+
+    }
+
+    catch (error) {
+
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+
+});
 
 module.exports = router;

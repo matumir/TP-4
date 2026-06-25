@@ -1,83 +1,290 @@
-const express = require('express');
-const { body, validationResult } = require('express-validator');
-const { Category } = require('../models');
+const express = require("express");
+const { body, validationResult } = require("express-validator");
+
+const {
+    Category,
+    Product,
+    Batch
+} = require("../models");
 
 const router = express.Router();
 
+/*
+====================================
+VALIDACIÓN
+====================================
+*/
+
 const validateCategory = [
-  body('name')
-    .trim()
-    .notEmpty()
-    .withMessage('Name is required'),
 
-  (req, res, next) => {
-    const errors = validationResult(req);
+    body("name")
+        .trim()
+        .notEmpty()
+        .withMessage("El nombre es obligatorio"),
 
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        errors: errors.array()
-      });
+    (req, res, next) => {
+
+        const errors = validationResult(req);
+
+        if (!errors.isEmpty()) {
+
+            return res.status(400).json({
+                errors: errors.array()
+            });
+
+        }
+
+        next();
+
     }
 
-    next();
-  }
 ];
 
-router.get('/', async (req, res) => {
-  const categories = await Category.findAll();
-  res.json(categories);
-});
+/*
+====================================
+LISTAR CATEGORÍAS
+====================================
+*/
 
-router.get('/:categoryId', async (req, res) => {
-  const category = await Category.findByPk(req.params.categoryId);
+router.get("/", async (req, res) => {
 
-  if (!category) {
-    return res.status(404).json({
-      message: 'Category not found'
-    });
-  }
+    try {
 
-  res.json(category);
-});
+        const categories = await Category.findAll({
 
-router.post('/', validateCategory, async (req, res) => {
-  const category = await Category.create({
-    name: req.body.name
-  });
+            include: [
 
-  res.status(201).json(category);
-});
+                {
+                    model: Product,
+                    as: "products",
 
-router.put('/:categoryId', validateCategory, async (req, res) => {
-  const category = await Category.findByPk(req.params.categoryId);
+                    include: [
+                        {
+                            model: Batch,
+                            as: "batches"
+                        }
+                    ]
+                }
 
-  if (!category) {
-    return res.status(404).json({
-      message: 'Category not found'
-    });
-  }
+            ]
 
-  await category.update({
-    name: req.body.name
-  });
+        });
 
-  res.json(category);
-});
+        const response = categories.map(category => ({
 
-router.delete('/:categoryId', async (req, res) => {
-  const deletedCount = await Category.destroy({
-    where: {
-      id: req.params.categoryId
+            id: category.id,
+
+            name: category.name,
+
+            productsCount: category.products.length
+
+        }));
+
+        res.json(response);
+
     }
-  });
 
-  if (!deletedCount) {
-    return res.status(404).json({
-      message: 'Category not found'
-    });
-  }
+    catch (error) {
 
-  res.status(204).send();
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+
+});
+
+/*
+====================================
+OBTENER CATEGORÍA
+====================================
+*/
+
+router.get("/:categoryId", async (req, res) => {
+
+    try {
+
+        const category = await Category.findByPk(req.params.categoryId, {
+
+            include: [
+
+                {
+                    model: Product,
+                    as: "products",
+
+                    include: [
+
+                        {
+                            model: Batch,
+                            as: "batches"
+                        }
+
+                    ]
+
+                }
+
+            ]
+
+        });
+
+        if (!category) {
+
+            return res.status(404).json({
+
+                message: "Categoría no encontrada"
+
+            });
+
+        }
+
+        const products = category.products.map(product => ({
+
+            id: product.id,
+
+            name: product.name,
+
+            minimumStock: product.minimumStock,
+
+            stock: product.batches.reduce(
+
+                (sum, batch) => sum + batch.quantity,
+
+                0
+
+            )
+
+        }));
+
+        res.json({
+
+            id: category.id,
+
+            name: category.name,
+
+            products
+
+        });
+
+    }
+
+    catch (error) {
+
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+
+});
+
+/*
+====================================
+CREAR
+====================================
+*/
+
+router.post("/", validateCategory, async (req, res) => {
+
+    try {
+
+        const category = await Category.create({
+
+            name: req.body.name
+
+        });
+
+        res.status(201).json(category);
+
+    }
+
+    catch (error) {
+
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+
+});
+
+/*
+====================================
+MODIFICAR
+====================================
+*/
+
+router.put("/:categoryId", validateCategory, async (req, res) => {
+
+    try {
+
+        const category = await Category.findByPk(req.params.categoryId);
+
+        if (!category) {
+
+            return res.status(404).json({
+
+                message: "Categoría no encontrada"
+
+            });
+
+        }
+
+        await category.update({
+
+            name: req.body.name
+
+        });
+
+        res.json(category);
+
+    }
+
+    catch (error) {
+
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+
+});
+
+/*
+====================================
+ELIMINAR
+====================================
+*/
+
+router.delete("/:categoryId", async (req, res) => {
+
+    try {
+
+        const category = await Category.findByPk(req.params.categoryId);
+
+        if (!category) {
+
+            return res.status(404).json({
+
+                message: "Categoría no encontrada"
+
+            });
+
+        }
+
+        await category.destroy();
+
+        res.status(204).send();
+
+    }
+
+    catch (error) {
+
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+
 });
 
 module.exports = router;

@@ -1,14 +1,58 @@
-export default function HouseCard({ house, onClick }) {
-  return (
-    <button
-      className="house-card"
-      onClick={onClick}
-    >
-      <h3>{house.title}</h3>
+import { useNavigate } from "react-router-dom";
 
-      <p>
-        ID: {house.id}
-      </p>
-    </button>
-  );
+
+export default function HouseCard({house}){
+
+
+    const navigate = useNavigate();
+
+
+
+    return (
+
+
+        <div className="house-card">
+
+
+            <button
+
+                onClick={()=>
+
+
+                    navigate(
+                        `/house/${house.id}`
+                    )
+
+
+                }
+
+
+            >
+
+
+                <h3>
+
+                    {house.name}
+
+                </h3>
+
+
+
+                <p>
+
+                    ID: {house.id}
+
+                </p>
+
+
+            </button>
+
+
+
+        </div>
+
+
+    );
+
+
 }

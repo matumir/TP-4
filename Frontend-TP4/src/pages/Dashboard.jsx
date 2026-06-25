@@ -1,61 +1,111 @@
-import { useNavigate } from "react-router-dom";
-
 import Header from "../components/Header";
 import HouseCard from "../components/HouseCard";
 
-export default function Dashboard() {
+import { useEffect, useState } from "react";
 
-    const navigate = useNavigate();
+import api from "../api/axios";
 
-    const email =
-        localStorage.getItem("email");
 
-    const houses = [
-        {
-            id: 1,
-            title: "Casa 1"
-        },
-        {
-            id: 2,
-            title: "Casa 2"
+export default function Dashboard(){
+
+
+    const [houses,setHouses] = useState([]);
+
+
+
+    useEffect(()=>{
+
+
+        const loadHouses = async()=>{
+
+
+            try{
+
+
+                const user =
+                    JSON.parse(
+                        localStorage.getItem("user")
+                    );
+
+
+
+                const response =
+                    await api.get(
+                        `/houses/user/${user.id}`
+                    );
+
+
+
+                setHouses(response.data);
+
+
+
+            }catch(error){
+
+                console.log(error);
+
+            }
+
+
         }
-    ];
+
+
+
+        loadHouses();
+
+
+
+    },[]);
+
+
+
+
+
 
     return (
-        <div>
 
-            <Header
-                email={email}
-            />
+        <div className="dashboard-container">
 
-            <div className="dashboard-container">
 
-                <h1>
-                    Mis Hogares
-                </h1>
+            <Header />
 
-                <div className="house-list">
 
-                    {
-                        houses.map((house) => (
 
-                            <HouseCard
-                                key={house.id}
-                                house={house}
-                                onClick={() =>
-                                    navigate(
-                                        `/house/${house.id}`
-                                    )
-                                }
-                            />
+            <h1>
 
-                        ))
-                    }
+                Mis Hogares
 
-                </div>
+            </h1>
+
+
+
+            <div className="house-list">
+
+
+                {
+                    houses.map(house=>(
+
+
+                        <HouseCard
+
+                            key={house.id}
+
+                            house={house}
+
+                        />
+
+
+                    ))
+                }
+
 
             </div>
 
+
+
         </div>
+
     );
+
+
 }

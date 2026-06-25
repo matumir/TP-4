@@ -1,169 +1,357 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+
+import api from "../api/axios";
 
 import Header from "../components/Header";
 import ProductCard from "../components/ProductCard";
 import AlertBox from "../components/AlertBox";
 
+
 export default function House() {
 
+
     const { id } = useParams();
+
 
     const email =
         localStorage.getItem("email");
 
-    const house = {
-        id,
-        title: `Casa ${id}`
-    };
 
-    const allProducts = [
-        {
-            id: 1,
-            name: "Leche",
-            quantity: 2,
-            minimumStock: 5,
-            categoryId: 1
-        },
-        {
-            id: 2,
-            name: "Queso",
-            quantity: 8,
-            minimumStock: 3,
-            categoryId: 1
-        },
-        {
-            id: 3,
-            name: "Manteca",
-            quantity: 4,
-            minimumStock: 2,
-            categoryId: 1
-        },
-        {
-            id: 4,
-            name: "Fideos",
-            quantity: 10,
-            minimumStock: 4,
-            categoryId: 2
-        }
-    ];
 
-    const categories = [
-        {
-            id: 1,
-            name: "Lácteos"
-        },
-        {
-            id: 2,
-            name: "Almacén"
-        }
-    ];
+    const [products, setProducts] =
+        useState([]);
 
-    const alerts = [
-        "Leche necesita reposición"
-    ];
+
+
+    const [loading, setLoading] =
+        useState(true);
+
+
 
     const [selectedCategory,
         setSelectedCategory] =
         useState(null);
 
-    const filteredProducts =
-        selectedCategory === null
-            ? allProducts
-            : allProducts.filter(
-                p =>
-                    p.categoryId ===
-                    selectedCategory
+
+
+
+
+    const loadProducts = async () => {
+
+
+        try {
+
+
+            const response =
+                await api.get("/products");
+
+
+
+            setProducts(
+                response.data
             );
 
+
+
+        } catch(error) {
+
+
+            console.log(
+                error
+            );
+
+
+        } finally {
+
+
+            setLoading(false);
+
+
+        }
+
+    };
+
+
+
+
+
+    useEffect(()=>{
+
+
+        loadProducts();
+
+
+    }, []);
+
+
+
+
+
+
+
+    if(loading){
+
+
+        return (
+
+            <h2>
+                Cargando productos...
+            </h2>
+
+        );
+
+
+    }
+
+
+
+
+
+
+
+    const categories =
+        [...new Set(
+
+            products.map(
+                product =>
+                    product.categoryId
+            )
+
+        )];
+
+
+
+
+
+
+
+    const filteredProducts =
+
+        selectedCategory === null
+
+        ?
+
+        products
+
+        :
+
+        products.filter(
+
+            product =>
+
+                product.categoryId ===
+                selectedCategory
+
+        );
+
+
+
+
+
+
+
+
+
     return (
+
+
         <div>
 
-            <Header email={email} />
+
+            <Header email={email}/>
+
+
+
+
 
             <div className="house-container">
 
+
+
                 <h1>
-                    Casa: {house.title}
+
+                    Casa: {id}
+
                 </h1>
 
+
+
+
+
+
                 <h2 className="section-title">
+
                     Categorías
+
                 </h2>
+
+
+
+
 
                 <div className="category-list">
 
+
+
                     <button
-                        className={`category-card ${
-                            selectedCategory === null
-                                ? "selected-category"
-                                : ""
-                        }`}
+
+                        className="category-card"
+
                         onClick={() =>
                             setSelectedCategory(null)
                         }
+
                     >
-                        Todas ({allProducts.length})
+
+                        Todas ({products.length})
+
+
                     </button>
 
-                    {
-                        categories.map(category => {
 
-                            const productCount =
-                                allProducts.filter(
+
+
+
+                    {
+
+                        categories.map(categoryId => {
+
+
+
+                            const amount =
+
+                                products.filter(
+
                                     product =>
-                                        product.categoryId === category.id
+
+                                    product.categoryId === categoryId
+
                                 ).length;
 
+
+
                             return (
+
                                 <button
-                                    key={category.id}
-                                    className={`category-card ${
-                                        selectedCategory === category.id
-                                            ? "selected-category"
-                                            : ""
-                                    }`}
+
+                                    key={categoryId}
+
+                                    className="category-card"
+
+
                                     onClick={() =>
+
                                         setSelectedCategory(
-                                            category.id
+                                            categoryId
                                         )
+
                                     }
+
+
                                 >
-                                    {category.name} ({productCount})
+
+                                    Categoría {categoryId}
+                                    {" "}
+                                    ({amount})
+
+
                                 </button>
+
+
                             );
+
+
                         })
+
                     }
+
+
+
 
                 </div>
 
+
+
+
+
+
+
                 <h2 className="section-title">
+
                     Productos
+
                 </h2>
+
+
+
+
 
                 <div className="product-list">
 
+
+
                     {
+
+
                         filteredProducts.map(product => (
 
+
                             <ProductCard
+
                                 key={product.id}
+
                                 product={product}
+
+
                             />
 
+
                         ))
+
+
+
                     }
+
+
+
+
 
                 </div>
 
+
+
+
+
+
+
+
                 <h2 className="section-title">
+
                     Alertas
+
                 </h2>
 
-                <AlertBox alerts={alerts} />
+
+
+                <AlertBox
+
+                    alerts={[]}
+
+                />
+
+
+
+
 
             </div>
 
+
+
         </div>
+
+
     );
+
+
 }

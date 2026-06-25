@@ -1,46 +1,239 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function Login() {
+import api from "../api/axios";
+
+
+export default function Login(){
+
+
     const navigate = useNavigate();
 
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
 
-    const handleLogin = (e) => {
+    const [username,setUsername] =
+        useState("");
+
+
+    const [password,setPassword] =
+        useState("");
+
+
+
+    const [error,setError] =
+        useState("");
+
+
+
+
+
+    const handleLogin = async (e)=>{
+
+
         e.preventDefault();
 
-        // Temporalmente dejamos pasar cualquier usuario
-        localStorage.setItem("email", email);
 
-        navigate("/dashboard");
+        try{
+
+
+            const response = await api.post(
+
+                "/users/login",
+
+                {
+
+                    username,
+
+                    password
+
+                }
+
+            );
+
+
+
+            console.log(
+                response.data
+            );
+
+
+
+            // guardamos el usuario logueado
+            // para usarlo después en el dashboard
+
+            localStorage.setItem(
+
+                "user",
+
+                JSON.stringify(
+                    response.data.user
+                )
+
+            );
+
+
+
+            navigate("/dashboard");
+
+
+
+
+        }catch(error){
+
+
+            console.log(error);
+
+
+
+            setError(
+
+                "Usuario o contraseña incorrectos"
+
+            );
+
+
+        }
+
+
     };
 
+
+
+
+
+
+
     return (
-        <div className="login-page">
-            <div className="login-box">
-                <h1>Stock Hogar</h1>
 
-                <form onSubmit={handleLogin}>
+
+        <div className="login-container">
+
+
+            <div className="login-card">
+
+
+
+                <h1>
+
+                    Stock Hogar
+
+                </h1>
+
+
+
+
+
+                <form
+
+                    onSubmit={handleLogin}
+
+                >
+
+
+
+
                     <input
-                        type="email"
-                        placeholder="Correo electrónico"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+
+
+                        type="text"
+
+
+                        placeholder="Usuario"
+
+
+                        value={username}
+
+
+                        onChange={(e)=>
+
+                            setUsername(
+                                e.target.value
+                            )
+
+                        }
+
+
+                        required
+
+
                     />
 
+
+
+
+
                     <input
+
+
                         type="password"
+
+
                         placeholder="Contraseña"
+
+
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+
+
+                        onChange={(e)=>
+
+                            setPassword(
+                                e.target.value
+                            )
+
+                        }
+
+
+                        required
+
+
                     />
 
-                    <button type="submit">
+
+
+
+
+
+                    {
+                        error && (
+
+                            <p>
+
+                                {error}
+
+                            </p>
+
+                        )
+                    }
+
+
+
+
+
+
+                    <button>
+
                         Login
+
                     </button>
+
+
+
+
+
                 </form>
+
+
+
+
+
             </div>
+
+
+
+
         </div>
+
+
     );
+
+
 }
